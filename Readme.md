@@ -4,3 +4,7 @@
 
 ## Controller-gen
 ```controller-gen paths=github.com/saima-s/data-restore/pkg/apis/saima.dev.com/v1  crd:crdVersions=v1 output:crd:artifacts:config=manifests```
+
+## Commands
+1. go build
+2. ./data-restore
