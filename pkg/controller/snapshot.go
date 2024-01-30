@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
 
@@ -24,7 +23,7 @@ type SnapshotController struct {
 	snapshotterClient exss.Interface
 }
 
-func NewSnapshotController(klient klientSet.Interface, snapshotterClient exss.Interface, informer kinf.DataRestoreInformer) *SnapshotController {
+func NewSnapshotController(klient klientSet.Interface, snapshotterClient exss.Interface, informer kinf.DataSnapshotInformer) *SnapshotController {
 
 	inf := informer.Informer()
 	ratelimiter := workqueue.NewMaxOfRateLimiter(
@@ -53,20 +52,16 @@ func NewSnapshotController(klient klientSet.Interface, snapshotterClient exss.In
 }
 
 func (c *SnapshotController) enqueueTask(obj interface{}) {
-	var key string
-	var err error
-	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
-		log.Printf("error in getting key from cache %v", err.Error())
-		return
-	}
 
-	c.queue.Add(key)
+	log.Println("EnqueueTask was called")
+
+	c.queue.Add(obj)
 }
 
 func (c *SnapshotController) Run(ch <-chan struct{}) {
-	fmt.Println("starting controller")
+	log.Println("Starting snapshot controller")
 	if !cache.WaitForCacheSync(ch, c.informer.HasSynced) {
-		fmt.Print("waiting for cache to be synced\n")
+		log.Println("Waiting for cache to be synced")
 	}
 
 	go wait.Until(c.snapshotWorker, 1*time.Second, ch)
@@ -97,7 +92,7 @@ func (c *SnapshotController) processItem() bool {
 
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
-		log.Printf("error splitting key into namespace and name: %v", err.Error())
+		log.Printf("Error splitting key into namespace and name: %v", err.Error())
 		return false
 	}
 
@@ -114,7 +109,7 @@ func (c *SnapshotController) processItem() bool {
 func (c *SnapshotController) Backup(namespace, name string) error {
 	resource, err := c.klient.SaimaV1().DataSnapshots(namespace).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
-		fmt.Printf("error in getting the custom resouce: %v", err.Error())
+		log.Printf("Error in getting the snapshot custom resouce: %v", err.Error())
 		return err
 	}
 
@@ -131,8 +126,21 @@ func (c *SnapshotController) Backup(namespace, name string) error {
 			},
 		},
 	}
+
+	snap, err := c.snapshotterClient.SnapshotV1().VolumeSnapshots(resource.Spec.Namespace).Get(context.Background(), resource.Spec.VolumeSnapshot, metav1.GetOptions{})
+	if err != nil {
+		log.Printf("Error in getting snapshot for %v", err.Error())
+	}
+
+	if snap != nil {
+		log.Printf("Snapshot already exists with this name: %v", snap.Name)
+
+		return nil
+	}
+
 	_, err = c.snapshotterClient.SnapshotV1().VolumeSnapshots(resource.Spec.Namespace).Create(context.Background(), &snapshot, metav1.CreateOptions{})
 	if err != nil {
+		log.Printf("Error in creating snapshot for %v", err.Error())
 		return err
 	}
 	log.Printf("Snapshot Created for %s", name)

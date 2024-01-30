@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
 
@@ -10,6 +9,7 @@ import (
 	kinf "github.com/saima-s/data-restore/pkg/client/informers/externalversions/saima.dev.com/v1"
 	"golang.org/x/time/rate"
 	corev1 "k8s.io/api/core/v1"
+	parser "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
@@ -18,13 +18,11 @@ import (
 )
 
 var (
-	apiGroup = "snapshot.storage.k8s.io"
+	apiGroup           = "snapshot.storage.k8s.io"
+	volumeSnapshotKind = "VolumeSnapshot"
 )
 
 type RestoreController struct {
-	// client kubernetes.Interface
-
-	// clientset for custom resource kluster
 	klient        klientSet.Interface
 	informer      cache.SharedIndexInformer
 	queue         workqueue.RateLimitingInterface
@@ -60,20 +58,16 @@ func NewRestoreController(klient klientSet.Interface, restoreClient kubernetes.I
 }
 
 func (c *RestoreController) enqueueTask(obj interface{}) {
-	var key string
-	var err error
-	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
-		log.Printf("error in getting key from cache %v", err.Error())
-		return
-	}
+	log.Println("restore enqueueTask was called")
 
-	c.queue.Add(key)
+	c.queue.Add(obj)
 }
 
 func (c *RestoreController) Run(ch <-chan struct{}) {
-	fmt.Println("starting controller")
+
+	log.Println("starting restore controller")
 	if !cache.WaitForCacheSync(ch, c.informer.HasSynced) {
-		fmt.Print("waiting for cache to be synced\n")
+		log.Print("waiting for cache to be synced\n")
 	}
 
 	go wait.Until(c.restoreWorker, 1*time.Second, ch)
@@ -121,7 +115,7 @@ func (c *RestoreController) processRestoreItem() bool {
 func (c *RestoreController) Restore(namespace, name string) error {
 	resource, err := c.klient.SaimaV1().DataRestores(namespace).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
-		fmt.Printf("error in getting the custom resouce: %v", err.Error())
+		log.Printf("error in getting the custom resouce: %v", err.Error())
 		return err
 	}
 
@@ -133,20 +127,37 @@ func (c *RestoreController) Restore(namespace, name string) error {
 		Spec: corev1.PersistentVolumeClaimSpec{
 			StorageClassName: &volumeSnapshotClass,
 			DataSource: &corev1.TypedLocalObjectReference{
-				Name:     resource.Spec.PvcName,
-				Kind:     "VolumeSnapshot",
+				Name:     resource.Spec.SnapshotName,
+				Kind:     volumeSnapshotKind,
 				APIGroup: &apiGroup,
 			},
 			AccessModes: []corev1.PersistentVolumeAccessMode{
 				corev1.ReadWriteOnce,
 			},
+			Resources: corev1.VolumeResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceStorage: parser.MustParse(resource.Spec.Storage),
+				},
+			},
 		},
 	}
 
-	_, err = c.restoreClient.CoreV1().PersistentVolumeClaims(resource.Namespace).Create(context.Background(), &pvc, metav1.CreateOptions{})
+	p, err := c.restoreClient.CoreV1().PersistentVolumeClaims(resource.Namespace).Get(context.Background(), resource.Name, metav1.GetOptions{})
 	if err != nil {
+		log.Printf("error in getting PVC is: %v", err.Error())
+	}
+
+	if p != nil {
+		log.Printf("this PVC already exists:%v", p.Name)
+		return nil
+	}
+
+	pvcCreated, err := c.restoreClient.CoreV1().PersistentVolumeClaims(resource.Namespace).Create(context.Background(), &pvc, metav1.CreateOptions{})
+	if err != nil {
+		log.Printf("error in restoring data is: %v", err.Error())
 		return err
 	}
-	log.Printf("Data Restored %s", name)
+
+	log.Printf("Data Restored %s", pvcCreated)
 	return nil
 }

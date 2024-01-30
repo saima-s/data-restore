@@ -3,6 +3,6 @@ kind: DataRestore
 metadata:
  name: datarestore-0
 spec:
- pvcName: nginx-pvc-test
+ snapshotName: btr-nginx-snapshot
  storage: 20Gi
  volumeSnapshotClass: csi-hostpath-sc

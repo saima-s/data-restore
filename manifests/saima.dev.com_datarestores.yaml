@@ -34,14 +34,14 @@ spec:
             type: object
           spec:
             properties:
-              pvcName:
+              snapshotName:
                 type: string
               storage:
                 type: string
               volumeSnapshotClass:
                 type: string
             required:
-            - pvcName
+            - snapshotName
             - volumeSnapshotClass
             type: object
         required:

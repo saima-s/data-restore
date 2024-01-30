@@ -24,7 +24,7 @@ type DataRestoreList struct {
 type DataRestoreSpec struct {
 	VolumeSnapshotClass string `json:"volumeSnapshotClass"`
 	Storage             string `json:"storage,omitempty"`
-	PvcName             string `json:"pvcName"`
+	SnapshotName        string `json:"snapshotName"`
 }
 
 // +genclient

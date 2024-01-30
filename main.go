@@ -41,13 +41,13 @@ func main() {
 		log.Printf("Building config from flags failed, %s, trying to build inclusterconfig", err.Error())
 		config, err = rest.InClusterConfig()
 		if err != nil {
-			log.Printf("error %s building inclusterconfig", err.Error())
+			log.Printf("Error %s building inclusterconfig", err.Error())
 		}
 	}
 
 	klientSet, err := klient.NewForConfig(config)
 	if err != nil {
-		log.Printf("error %s getting clientset", err.Error())
+		log.Printf("Error %s getting clientset", err.Error())
 	}
 
 	snapClient, err := exss.NewForConfig(config)
@@ -62,37 +62,21 @@ func main() {
 		return
 	}
 
-	// factory := informers.NewSharedInformerFactory(snapClient, *resyncPeriod)
-
-	fmt.Println("klientSet is:", klientSet)
+	fmt.Println("KlientSet is:", klientSet)
 
 	dataRestorePvc, err := klientSet.SaimaV1().DataRestores("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
-		log.Printf("error %s getting list of dataRestorePvc", err.Error())
+		log.Printf("Error %s getting list of dataRestorePvc", err.Error())
 	}
 
 	fmt.Println(len(dataRestorePvc.Items))
 
 	infoFactory := kInfFac.NewSharedInformerFactory(klientSet, 20*time.Minute)
-	snapshotctrl := controller.NewSnapshotController(klientSet, snapClient, infoFactory.Saima().V1().DataRestores())
+	snapshotctrl := controller.NewSnapshotController(klientSet, snapClient, infoFactory.Saima().V1().DataSnapshots())
 	restorectrl := controller.NewRestoreController(klientSet, restoreClient, infoFactory.Saima().V1().DataRestores())
 
 	infoFactory.Start(make(<-chan struct{}))
-	snapshotctrl.Run(make(<-chan struct{}))
+	go snapshotctrl.Run(make(<-chan struct{}))
 	restorectrl.Run(make(<-chan struct{}))
-
-	// dynClient, err := dynamic.NewForConfig(config)
-	// if err != nil {
-	// 	fmt.Printf("error %s, getting dyn client\n", err.Error())
-	// }
-
-	// _, err = dynClient.Resource(schema.GroupVersionResource{
-	// 	Group:    "saima.dev.com",
-	// 	Version:  "v1",
-	// 	Resource: "dataRestore",
-	// }).Namespace("default").Get(context.Background(), "kluster-0", metav1.GetOptions{})
-	// if err != nil {
-	// 	fmt.Printf("error %s gettign resource from dyn client\n", err.Error())
-	// }
 
 }

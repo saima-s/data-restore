@@ -23,6 +23,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
 		&DataRestore{},
 		&DataRestoreList{},
+		&DataSnapshot{},
+		&DataSnapshotList{},
 	)
 
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
