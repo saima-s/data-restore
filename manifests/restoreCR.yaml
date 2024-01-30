@@ -1,0 +1,8 @@
+apiVersion: saima.dev.com/v1
+kind: DataRestore
+metadata:
+ name: datarestore-0
+spec:
+ pvcName: nginx-pvc-test
+ storage: 20Gi
+ volumeSnapshotClass: csi-hostpath-sc
