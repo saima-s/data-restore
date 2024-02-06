@@ -17,6 +17,6 @@ spec:
       serviceAccountName: data-restore-service-account
       containers:
       - name: data-restore
-        image: sultanasaima/data-restore:9.0.0
+        image: sultanasaima/data-restore:10.0.0
         ports:
         - containerPort: 80
