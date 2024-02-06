@@ -38,11 +38,9 @@ To run the controller on Local System,need to install following Software Depende
  1. Open a terminal and run below commands: 
    ```sh
    go build
-    
    ```
    ```sh
    ./data-restore
-    
    ```
  2. Create a snapCR custom resource by following command:
 
