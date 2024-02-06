@@ -17,64 +17,32 @@ Following are the key features of this controller:
 
  To run the data-restore controller on local machine:
  1. Open a terminal.
- 2. ```bash
-       go build```
- 3. ```bash
-       ./data-restore```
+ 2. ```go build```
+ 3. ```./data-restore```
  4. Create a snapCR custom resource by following command:
-    ```bash
-        cd manifests/kubectl create -f snapCR.yaml```
+    ```cd manifests/kubectl create -f snapCR.yaml```
  5. Create a restoreCR custom resource by following command:
-    ```bash
-        cd manifests/kubectl create -f restoreCR.yaml```
+    ```cd manifests/kubectl create -f restoreCR.yaml```
 
  ### Cluster
 
  To run application on cluster:
- 1. Dockerize application by writing Dockerfile.
+ 1. Dockerize application by writing Dockerfile. Build and push image to docker hub repository.
  2. Create service account, clusterrole and clusterrolebinding to access custom resource and watch it by running following command:
-    ```bash
-        cd manifests/kubectl create -f sa.yaml```
-    ```bash
-        cd manifests/kubectl create -f role.yaml```
+    ```cd manifests/kubectl create -f sa.yaml```
+    ```cd manifests/kubectl create -f role.yaml```
  3. Deploy the application by running following command:
-    ```bash
-       cd manifests/kubectl create -f deployment.yaml```
+    ```cd manifests/kubectl create -f deployment.yaml```
  4. exec into pod and run:
-    ```bash
-        ./data-restore``` 
+    ```./data-restore``` 
  
  
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ## Code generation
 ```/home/saima/go/src/k8s.io/code-generator/generate-groups.sh deepcopy,client,informer,lister github.com/saima-s/data-restore/pkg/client  github.com/saima-s/data-restore/pkg/apis saima.dev.com:v1 --go-header-file /home/saima/go/src/k8s.io/code-generator/examples/hack/boilerplate.go.txt```
 
 
 ## Controller-gen
 ```controller-gen paths=github.com/saima-s/data-restore/pkg/apis/saima.dev.com/v1  crd:crdVersions=v1 output:crd:artifacts:config=manifests```
-
-## Commands to run the application
-1. go build
-2. ./data-restore
-
 
 ## Docker commands
 
