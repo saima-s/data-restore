@@ -1,5 +1,14 @@
 # data-restore
 
+## Table of Contents
+[Introduction](Introduction)
+
+[Getting Started](Gettingstarted)
+
+[Run Code](Runcode)
+
+[Reference](References)
+
 ## Introduction
 
 The data-restore is a custom kubernetes controller written in Go.
@@ -8,41 +17,91 @@ Following are the key features of this controller:
 2. On Addition of custom(Snap) CR, it takes snapshot of PVC.
 3. On Addition of custom(restore) CR, it takes the backup the snapshot created into a new PVC.
 
-## Run code
+# Getting started
+Below instruction will help in setting up project locally as well as up and running in cluster:
 
-### Pre-requisite
- 1. Install minikube locally: https://www.linuxbuzz.com/install-minikube-on-ubuntu/
+## Dependencies:
+To run the controller on Local System,need to install following Software Dependencies.
 
-### Locally
+[Go](https://go.dev/doc/install)
+
+[Docker](https://docs.docker.com/engine/install/ubuntu/)
+
+[Minikube](https://www.linuxbuzz.com/install-minikube-on-ubuntu/)
+
+
+# Run code
+
+## Locally
 
  To run the data-restore controller on local machine:
- 1. Open a terminal.
- 2. ```go build```
- 3. ```./data-restore```
- 4. Create a snapCR custom resource by following command:
-    ```cd manifests/kubectl create -f snapCR.yaml```
- 5. Create a restoreCR custom resource by following command:
-    ```cd manifests/kubectl create -f restoreCR.yaml```
+ 1. Open a terminal and run below commands: 
+   ```sh
+   go build
+    
+   ```
+   ```sh
+   ./data-restore
+    
+   ```
+ 2. Create a snapCR custom resource by following command:
 
- ### Cluster
+   ```sh
+    cd manifests/kubectl create -f snapCR.yaml
+   ```
+ 3. Create a restoreCR custom resource by following command:
+
+   ```sh
+    cd manifests/kubectl create -f restoreCR.yaml
+   ```
+
+## Cluster
+
+ Start cluster and enable addon: 
+ 
+  ```sh
+   minikube start
+  ```
+
+
+  ```sh
+  minikube addons enable volumesnapshots
+  ```
+
+
+  ```sh
+  minikube addons enable csi-hostpath-driver
+  ```
 
  To run application on cluster:
- 1. Dockerize application by writing Dockerfile. Build and push image to docker hub repository.
+ 1. Dockerize application by writing Dockerfile. Build and push image to docker hub repository [here](#Docker-commands).
  2. Create service account, clusterrole and clusterrolebinding to access custom resource and watch it by running following command:
-    ```cd manifests/kubectl create -f sa.yaml```
-    ```cd manifests/kubectl create -f role.yaml```
- 3. Deploy the application by running following command:
-    ```cd manifests/kubectl create -f deployment.yaml```
- 4. exec into pod and run:
-    ```./data-restore``` 
- 
- 
-## Code generation
-```/home/saima/go/src/k8s.io/code-generator/generate-groups.sh deepcopy,client,informer,lister github.com/saima-s/data-restore/pkg/client  github.com/saima-s/data-restore/pkg/apis saima.dev.com:v1 --go-header-file /home/saima/go/src/k8s.io/code-generator/examples/hack/boilerplate.go.txt```
 
+  ```sh
+  cd manifests/kubectl create -f sa.yaml
+  ```
+    
+   ```sh
+   cd manifests/kubectl create -f role.yaml
+   ```
+ 4. Deploy the application by running following command:
+    
+   ```sh
+    cd manifests/kubectl create -f deployment.yaml
+   ```
+ 6. exec into pod and run:
+    
+   ```sh
+   ./data-restore
+   ``` 
 
-## Controller-gen
-```controller-gen paths=github.com/saima-s/data-restore/pkg/apis/saima.dev.com/v1  crd:crdVersions=v1 output:crd:artifacts:config=manifests```
+# References
+1. https://pkg.go.dev/k8s.io/client-go
+2. https://pkg.go.dev/k8s.io/apimachinery
+3. https://pkg.go.dev/github.com/mitchellh/go-homedir
+4. https://minikube.sigs.k8s.io/docs/tutorials/volume_snapshots_and_csi/
+5. https://pkg.go.dev/github.com/kubernetes-csi/external-snapshotter/v6
+
 
 ## Docker commands
 
