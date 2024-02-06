@@ -1,6 +1,0 @@
-apiVersion: saima.dev.com/v1
-kind: DataRestore
-metadata:
- name: pvc-info
-spec:
- pvcName: "pvc-test"

@@ -6,11 +6,13 @@ import (
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:subresource:status
 type DataRestore struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec DataRestoreSpec `json:"spec"`
+	Spec   DataRestoreSpec `json:"spec"`
+	Status RestoreStatus   `json:"status"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -24,16 +26,22 @@ type DataRestoreList struct {
 type DataRestoreSpec struct {
 	VolumeSnapshotClass string `json:"volumeSnapshotClass"`
 	Storage             string `json:"storage,omitempty"`
-	SnapshotName        string `json:"snapshotName"`
+	SnapshotCRName      string `json:"snapshotCRName"`
+}
+
+type RestoreStatus struct {
+	Progress string `json:"progress,omitempty"`
 }
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:subresource:status
 type DataSnapshot struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec DataSnapshotSpec `json:"spec"`
+	Spec   DataSnapshotSpec `json:"spec"`
+	Status SnapshotStatus   `json:"status"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -45,8 +53,12 @@ type DataSnapshotList struct {
 }
 
 type DataSnapshotSpec struct {
-	VolumeSnapshot      string `json:"volumeSnapshot"`
 	VolumeSnapshotClass string `json:"volumeSnapshotClass"`
 	PvcName             string `json:"pvcName"`
 	Namespace           string `json:"namespace"`
+}
+
+type SnapshotStatus struct {
+	Progress     string `json:"progress,omitempty"`
+	SnapshotName string `json:"snapshotName,omitempty"`
 }

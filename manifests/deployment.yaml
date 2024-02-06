@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-restore-deployment
+  labels:
+    app: data-restore
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: data-restore
+  template:
+    metadata:
+      labels:
+        app: data-restore
+    spec:
+      serviceAccountName: data-restore-service-account
+      containers:
+      - name: data-restore
+        image: sultanasaima/data-restore:9.0.0
+        ports:
+        - containerPort: 80

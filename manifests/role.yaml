@@ -1,0 +1,44 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+items:
+  - metadata:
+      name: datasnapshot-role
+      labels:
+        # rbac.authorization.k8s.io/aggregate-to-admin: "true" 
+        # rbac.authorization.k8s.io/aggregate-to-edit: "true" 
+    rules:
+      - apiGroups: ["saima.dev.com"] 
+        resources: ["datasnapshots"] 
+        verbs: ["get", "list", "watch", "create",
+                "update", "patch", "delete", "deletecollection"] 
+  # - metadata:
+  #     name: datarestore-role
+  #     labels:
+  #       # Add these permissions to the "view" default role.
+  #       rbac.authorization.k8s.io/aggregate-to-view: "true" 
+  #       rbac.authorization.k8s.io/aggregate-to-cluster-reader: "true" 
+  #   rules:
+      - apiGroups: ["saima.dev.com"] 
+        resources: ["datarestores"] 
+        verbs: ["get", "list", "watch", "create"]
+      - apiGroups: [""] 
+        resources: ["persistentvolumeclaims"] 
+        verbs: ["get", "list", "watch", "create"]
+      - apiGroups: ["snapshot.storage.k8s.io"] 
+        resources: ["volumesnapshots"] 
+        verbs: ["get", "list", "watch", "create"]
+---
+
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: datasnapshot-rolebn
+subjects:
+  - kind: ServiceAccount
+    name: data-restore-service-account
+    # replace with non-default namespace name
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: datasnapshot-role
+  apiGroup: ""

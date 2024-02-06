@@ -34,21 +34,29 @@ spec:
             type: object
           spec:
             properties:
-              snapshotName:
+              snapshotCRName:
                 type: string
               storage:
                 type: string
               volumeSnapshotClass:
                 type: string
             required:
-            - snapshotName
+            - snapshotCRName
             - volumeSnapshotClass
+            type: object
+          status:
+            properties:
+              progress:
+                type: string
             type: object
         required:
         - spec
+        # - status
         type: object
     served: true
     storage: true
+    subresources:
+      status: {}
 status:
   acceptedNames:
     kind: ""

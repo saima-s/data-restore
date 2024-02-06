@@ -40,6 +40,7 @@ type DataSnapshotsGetter interface {
 type DataSnapshotInterface interface {
 	Create(ctx context.Context, dataSnapshot *v1.DataSnapshot, opts metav1.CreateOptions) (*v1.DataSnapshot, error)
 	Update(ctx context.Context, dataSnapshot *v1.DataSnapshot, opts metav1.UpdateOptions) (*v1.DataSnapshot, error)
+	UpdateStatus(ctx context.Context, dataSnapshot *v1.DataSnapshot, opts metav1.UpdateOptions) (*v1.DataSnapshot, error)
 	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
 	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.DataSnapshot, error)
@@ -128,6 +129,22 @@ func (c *dataSnapshots) Update(ctx context.Context, dataSnapshot *v1.DataSnapsho
 		Namespace(c.ns).
 		Resource("datasnapshots").
 		Name(dataSnapshot.Name).
+		VersionedParams(&opts, scheme.ParameterCodec).
+		Body(dataSnapshot).
+		Do(ctx).
+		Into(result)
+	return
+}
+
+// UpdateStatus was generated because the type contains a Status member.
+// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
+func (c *dataSnapshots) UpdateStatus(ctx context.Context, dataSnapshot *v1.DataSnapshot, opts metav1.UpdateOptions) (result *v1.DataSnapshot, err error) {
+	result = &v1.DataSnapshot{}
+	err = c.client.Put().
+		Namespace(c.ns).
+		Resource("datasnapshots").
+		Name(dataSnapshot.Name).
+		SubResource("status").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(dataSnapshot).
 		Do(ctx).

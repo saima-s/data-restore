@@ -38,21 +38,28 @@ spec:
                 type: string
               pvcName:
                 type: string
-              volumeSnapshot:
-                type: string
               volumeSnapshotClass:
                 type: string
             required:
             - namespace
             - pvcName
-            - volumeSnapshot
             - volumeSnapshotClass
+            type: object
+          status:
+            properties:
+              progress:
+                type: string
+              snapshotName:
+                type: string
             type: object
         required:
         - spec
+        # - status
         type: object
     served: true
     storage: true
+    subresources:
+      status: {}
 status:
   acceptedNames:
     kind: ""

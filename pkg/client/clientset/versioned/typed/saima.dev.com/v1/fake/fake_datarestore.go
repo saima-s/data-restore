@@ -101,6 +101,18 @@ func (c *FakeDataRestores) Update(ctx context.Context, dataRestore *v1.DataResto
 	return obj.(*v1.DataRestore), err
 }
 
+// UpdateStatus was generated because the type contains a Status member.
+// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
+func (c *FakeDataRestores) UpdateStatus(ctx context.Context, dataRestore *v1.DataRestore, opts metav1.UpdateOptions) (*v1.DataRestore, error) {
+	obj, err := c.Fake.
+		Invokes(testing.NewUpdateSubresourceAction(datarestoresResource, "status", c.ns, dataRestore), &v1.DataRestore{})
+
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*v1.DataRestore), err
+}
+
 // Delete takes name of the dataRestore and deletes it. Returns an error if one occurs.
 func (c *FakeDataRestores) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	_, err := c.Fake.

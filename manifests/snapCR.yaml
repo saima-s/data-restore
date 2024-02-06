@@ -1,9 +1,8 @@
 apiVersion: saima.dev.com/v1
 kind: DataSnapshot
 metadata:
-  name: datasnapshot-0
+  name: datasnapshotone
 spec:
-  volumeSnapshot: btr-nginx-snapshot
   volumeSnapshotClass: csi-hostpath-snapclass
-  pvcName: nginx-pvc-test-new
+  pvcName: pvc-snapshot-2
   namespace: default

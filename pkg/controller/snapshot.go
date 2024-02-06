@@ -41,10 +41,6 @@ func NewSnapshotController(klient klientSet.Interface, snapshotterClient exss.In
 	inf.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: ctrl.enqueueTask,
-
-			UpdateFunc: func(old, new interface{}) {
-				ctrl.enqueueTask(new)
-			},
 		},
 	)
 	return ctrl
@@ -53,7 +49,7 @@ func NewSnapshotController(klient klientSet.Interface, snapshotterClient exss.In
 
 func (c *SnapshotController) enqueueTask(obj interface{}) {
 
-	log.Println("EnqueueTask was called")
+	log.Printf("EnqueueTask was called: %v", obj)
 
 	c.queue.Add(obj)
 }
@@ -90,13 +86,13 @@ func (c *SnapshotController) processItem() bool {
 		log.Printf("Error getting key from cache %v", err.Error())
 	}
 
-	namespace, name, err := cache.SplitMetaNamespaceKey(key)
+	namespace, crName, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		log.Printf("Error splitting key into namespace and name: %v", err.Error())
 		return false
 	}
 
-	err = c.Backup(namespace, name)
+	err = c.Backup(namespace, crName)
 	if err != nil {
 		return false
 	}
@@ -106,8 +102,8 @@ func (c *SnapshotController) processItem() bool {
 	return true
 }
 
-func (c *SnapshotController) Backup(namespace, name string) error {
-	resource, err := c.klient.SaimaV1().DataSnapshots(namespace).Get(context.Background(), name, metav1.GetOptions{})
+func (c *SnapshotController) Backup(namespace, crName string) error {
+	resource, err := c.klient.SaimaV1().DataSnapshots(namespace).Get(context.Background(), crName, metav1.GetOptions{})
 	if err != nil {
 		log.Printf("Error in getting the snapshot custom resouce: %v", err.Error())
 		return err
@@ -116,8 +112,8 @@ func (c *SnapshotController) Backup(namespace, name string) error {
 	volumeSnapshotClass := resource.Spec.VolumeSnapshotClass
 	snapshot := snap.VolumeSnapshot{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      resource.Spec.VolumeSnapshot,
-			Namespace: resource.Spec.Namespace,
+			GenerateName: "snapshot-",
+			Namespace:    namespace, // create a snapshot in namespace where CR is present(here datasnapshot-0)
 		},
 		Spec: snap.VolumeSnapshotSpec{
 			VolumeSnapshotClassName: &volumeSnapshotClass,
@@ -127,22 +123,73 @@ func (c *SnapshotController) Backup(namespace, name string) error {
 		},
 	}
 
-	snap, err := c.snapshotterClient.SnapshotV1().VolumeSnapshots(resource.Spec.Namespace).Get(context.Background(), resource.Spec.VolumeSnapshot, metav1.GetOptions{})
-	if err != nil {
-		log.Printf("Error in getting snapshot for %v", err.Error())
-	}
-
-	if snap != nil {
-		log.Printf("Snapshot already exists with this name: %v", snap.Name)
-
-		return nil
-	}
-
-	_, err = c.snapshotterClient.SnapshotV1().VolumeSnapshots(resource.Spec.Namespace).Create(context.Background(), &snapshot, metav1.CreateOptions{})
+	snap, err := c.snapshotterClient.SnapshotV1().VolumeSnapshots(namespace).Create(context.Background(), &snapshot, metav1.CreateOptions{})
 	if err != nil {
 		log.Printf("Error in creating snapshot for %v", err.Error())
 		return err
 	}
-	log.Printf("Snapshot Created for %s", name)
+
+	generatedName := snap.Name
+	err = c.updateStatus(creating, generatedName, crName, namespace)
+	if err != nil {
+		log.Printf("Error in updating snapshot %s", err)
+		return err
+	}
+
+	go c.waitForBackup(generatedName, namespace, crName, namespace)
+	log.Printf("Snapshot Created for %s", crName)
 	return nil
+}
+
+func (c *SnapshotController) updateStatus(progress, snapshotName, crName, namespace string) error {
+	resource, err := c.klient.SaimaV1().DataSnapshots(namespace).Get(context.Background(), crName, metav1.GetOptions{})
+	if err != nil {
+		log.Printf("Error in getting the snapshot custom resouce for updating status: %v", err.Error())
+		return err
+	}
+
+	newResource := resource.DeepCopy()
+	newResource.Status.Progress = progress
+	newResource.Status.SnapshotName = snapshotName
+
+	_, err = c.klient.SaimaV1().DataSnapshots(namespace).UpdateStatus(context.Background(), newResource, metav1.UpdateOptions{})
+	if err != nil {
+		log.Printf("Error in updating the status of snapshot: %v", err)
+		return err
+	}
+
+	return nil
+
+}
+
+func (c *SnapshotController) waitForBackup(snapshotName string, snapNamespace string, crName string, crNamespace string) {
+	err := wait.Poll(5*time.Second, 5*time.Minute, func() (done bool, err error) {
+		status := c.getSnapshotState(snapshotName, snapNamespace)
+		if status == true {
+			err = c.updateStatus(created, snapshotName, crName, crNamespace)
+			if err != nil {
+				log.Printf("Error in updating status %s", err.Error())
+			}
+
+			log.Printf("Updating status to created")
+			return true, nil
+		}
+
+		log.Println("Waiting for volume snapshot to get ready")
+		return false, nil
+	})
+	if err != nil {
+		log.Printf("Error waiting backup for created %s", err.Error())
+		return
+	}
+}
+
+func (c *SnapshotController) getSnapshotState(name, namespace string) bool {
+	backup, err := c.snapshotterClient.SnapshotV1().VolumeSnapshots(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		log.Printf("Error Getting Current State of Volume Snapshot %s.\nReason --> %s", name, err.Error())
+	}
+
+	status := backup.Status.ReadyToUse
+	return *status
 }

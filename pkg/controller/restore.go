@@ -20,6 +20,10 @@ import (
 var (
 	apiGroup           = "snapshot.storage.k8s.io"
 	volumeSnapshotKind = "VolumeSnapshot"
+	restoredPVCName    = "restore-pvc-"
+	creating           = "Creating"
+	bound              = "Bound"
+	created            = "Created"
 )
 
 type RestoreController struct {
@@ -47,10 +51,6 @@ func NewRestoreController(klient klientSet.Interface, restoreClient kubernetes.I
 	inf.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: ctrl.enqueueTask,
-
-			UpdateFunc: func(old, new interface{}) {
-				ctrl.enqueueTask(new)
-			},
 		},
 	)
 	return ctrl
@@ -93,7 +93,7 @@ func (c *RestoreController) processRestoreItem() bool {
 
 	key, err := cache.MetaNamespaceKeyFunc(obj)
 	if err != nil {
-		log.Printf("Eerror getting key from cache %v", err.Error())
+		log.Printf("error getting key from cache %v", err.Error())
 	}
 
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
@@ -119,15 +119,22 @@ func (c *RestoreController) Restore(namespace, name string) error {
 		return err
 	}
 
+	snapResource, err := c.klient.SaimaV1().DataSnapshots(namespace).Get(context.Background(), resource.Spec.SnapshotCRName, metav1.GetOptions{})
+	if err != nil {
+		log.Printf("error in getting the snapshot custom resouce: %v", err.Error())
+		return err
+	}
+
 	volumeSnapshotClass := resource.Spec.VolumeSnapshotClass
+	pvcName := restoredPVCName
 	pvc := corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: resource.Name,
+			GenerateName: pvcName,
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			StorageClassName: &volumeSnapshotClass,
 			DataSource: &corev1.TypedLocalObjectReference{
-				Name:     resource.Spec.SnapshotName,
+				Name:     snapResource.Status.SnapshotName,
 				Kind:     volumeSnapshotKind,
 				APIGroup: &apiGroup,
 			},
@@ -142,22 +149,73 @@ func (c *RestoreController) Restore(namespace, name string) error {
 		},
 	}
 
-	p, err := c.restoreClient.CoreV1().PersistentVolumeClaims(resource.Namespace).Get(context.Background(), resource.Name, metav1.GetOptions{})
-	if err != nil {
-		log.Printf("error in getting PVC is: %v", err.Error())
-	}
-
-	if p != nil {
-		log.Printf("this PVC already exists:%v", p.Name)
-		return nil
-	}
-
 	pvcCreated, err := c.restoreClient.CoreV1().PersistentVolumeClaims(resource.Namespace).Create(context.Background(), &pvc, metav1.CreateOptions{})
 	if err != nil {
 		log.Printf("error in restoring data is: %v", err.Error())
 		return err
 	}
 
+	err = c.updateStatus(creating, name, namespace)
+	if err != nil {
+		log.Printf("Error in updating status %s", err.Error())
+		return err
+	}
+
+	go c.waitForRestore(pvcCreated.Name, namespace, name, namespace)
+
 	log.Printf("Data Restored %s", pvcCreated)
 	return nil
+}
+
+func (c *RestoreController) updateStatus(progress, name, namespace string) error {
+	resource, err := c.klient.SaimaV1().DataRestores(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		log.Printf("Error in getting restore custom resouce: %v", err.Error())
+		return err
+	}
+
+	resource.Status.Progress = progress
+
+	_, err = c.klient.SaimaV1().DataRestores(namespace).UpdateStatus(context.Background(), resource, metav1.UpdateOptions{})
+	if err != nil {
+		log.Printf("Error in updating the status of restore backup: %v", err.Error())
+		return err
+	}
+
+	return nil
+
+}
+
+func (c *RestoreController) waitForRestore(pvcName string, pvcNamespace string, restoreName string, restoreNamespace string) {
+	err := wait.Poll(5*time.Second, 5*time.Minute, func() (done bool, err error) {
+		status := c.getRestorePVCState(pvcName, pvcNamespace)
+		if status == bound {
+			err = c.updateStatus(created, restoreName, restoreNamespace)
+			if err != nil {
+				log.Printf("Error in updating status %s", err.Error())
+			}
+
+			log.Printf("Updating Status to created")
+			return true, nil
+		}
+
+		log.Println("Waiting for restore to get ready")
+		return false, nil
+	})
+
+	if err != nil {
+		log.Printf("Error in waiting for backup to be created %s", err.Error())
+		return
+	}
+}
+
+func (c *RestoreController) getRestorePVCState(name, ns string) string {
+	restore, err := c.restoreClient.CoreV1().PersistentVolumeClaims(ns).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		log.Printf("Error in getting current state of volume snapshot %s", err.Error())
+	}
+
+	status := restore.Status.Phase
+
+	return string(status)
 }
