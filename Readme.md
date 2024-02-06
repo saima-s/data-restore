@@ -1,13 +1,13 @@
 # data-restore
 
 ## Table of Contents
-[Introduction](Introduction)
+[Introduction](#Introduction)
 
-[Getting Started](Gettingstarted)
+[Getting Started](#Getting-started)
 
-[Run Code](Runcode)
+[Run Code](#Run-code)
 
-[Reference](References)
+[Reference](#References)
 
 ## Introduction
 
