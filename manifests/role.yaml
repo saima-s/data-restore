@@ -10,7 +10,10 @@ items:
       - apiGroups: ["saima.dev.com"] 
         resources: ["datasnapshots"] 
         verbs: ["get", "list", "watch", "create",
-                "update", "patch", "delete", "deletecollection"] 
+                "update", "patch", "delete", "deletecollection"]
+      - apiGroups: ["saima.dev.com"]
+        resources: ["datasnapshots/status"]
+        verbs: ["update"]
   # - metadata:
   #     name: datarestore-role
   #     labels:
@@ -21,6 +24,9 @@ items:
       - apiGroups: ["saima.dev.com"] 
         resources: ["datarestores"] 
         verbs: ["get", "list", "watch", "create"]
+      - apiGroups: ["saima.dev.com"]
+        resources: ["datarestores/status"]
+        verbs: ["update"]
       - apiGroups: [""] 
         resources: ["persistentvolumeclaims"] 
         verbs: ["get", "list", "watch", "create"]
